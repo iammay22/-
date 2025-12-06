@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>九格攻防戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #fef3c7; /* Amber-100 */
+            background-image: radial-gradient(#d97706 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow-x: hidden;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+        }
+
+        #wheel-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); /* Ease-out effect */
+        }
+
+        .pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #dc2626; /* Red-600 */
+            z-index: 10;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* Modal Animation */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms, transform 300ms;
+        }
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 200ms, transform 200ms;
+        }
+
+        .btn-wood {
+            background: linear-gradient(to bottom, #a0522d, #8b4513);
+            border: 2px solid #5d2e0c;
+            box-shadow: 0 4px 0 #5d2e0c;
+            transition: all 0.1s;
+        }
+        .btn-wood:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #5d2e0c;
+        }
+
+        .instruction-step {
+            display: flex;
+            align-items: start;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .step-num {
+            background-color: #d97706;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-gray-800">
+
+    <!-- Header -->
+    <header class="text-center py-6 px-4">
+        <h1 class="text-3xl font-bold text-amber-900 tracking-wider mb-2">九格攻防戰</h1>
+        <p class="text-amber-700 text-sm">點擊按鈕，決定你的攻防武器！</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center justify-center px-4 pb-10">
+        
+        <!-- Wheel Section -->
+        <div class="wheel-container mb-8">
+            <div class="pointer"></div>
+            <canvas id="wheel-canvas" width="600" height="600"></canvas>
+            <!-- Center Hub -->
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full border-4 border-amber-200 shadow-md z-10 flex items-center justify-center">
+                <div class="w-4 h-4 bg-amber-500 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-col items-center w-full max-w-xs space-y-4">
+            <button id="spin-btn" class="btn-wood w-full py-4 text-white text-xl font-bold rounded-xl tracking-widest">
+                開始抽武器！
+            </button>
+
+            <!-- Result Area (Hidden initially) -->
+            <div id="result-area" class="hidden w-full text-center bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg border-2 border-amber-300">
+                <p class="text-gray-500 text-sm mb-1">恭喜獲得</p>
+                <h2 id="result-name" class="text-2xl font-bold text-red-600 mb-3">竹筷子槍</h2>
+                <button id="tutorial-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium shadow-md w-full transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                    </svg>
+                    觀看製作說明
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-amber-800/60 text-xs">
+        <p>© 懷舊童玩工作室</p>
+    </footer>
+
+    <!-- Tutorial Modal -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center px-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div id="modal-content" class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-90 transition-transform duration-300">
+            <!-- Modal Header -->
+            <div id="modal-header" class="bg-amber-500 p-4 flex justify-between items-center">
+                <h3 id="modal-title" class="text-white text-xl font-bold">製作教學</h3>
+                <button id="close-modal" class="text-white hover:bg-amber-600 rounded-full p-1 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 max-h-[60vh] overflow-y-auto">
+                <div class="flex justify-center mb-6">
+                    <div id="modal-icon" class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl">
+                        🔫
+                    </div>
+                </div>
+                <div id="modal-steps" class="space-y-2 text-gray-700">
+                    <!-- Steps will be injected here -->
+                </div>
+                
+                <div class="mt-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                    ⚠️ <strong>安全注意：</strong> 請勿對準人或動物發射，僅可射擊紙靶或罐頭喔！
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t bg-gray-50 text-center">
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 font-medium text-sm">
+                    回到轉盤
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Configuration
+        const weapons = [
+            {
+                id: 1,
+                name: "竹筷子槍",
+                color: "#fca5a5", // Red-300
+                textColor: "#7f1d1d",
+                icon: "🔫",
+                steps: [
+                    "準備一雙免洗竹筷和約 5 條橡皮筋。",
+                    "將竹筷的大頭端切出一個凹槽（用來勾橡皮筋）。",
+                    "將另一根竹筷切短做成「板機」與「握把」。",
+                    "使用橡皮筋將握把與槍身以十字交叉方式綁緊。",
+                    "裝上板機，用橡皮筋固定，確保可以活動。",
+                    "將發射用的橡皮筋勾在凹槽與板機上方即完成！"
+                ]
+            },
+            {
+                id: 2,
+                name: "牙線棒弓箭",
+                color: "#93c5fd", // Blue-300
+                textColor: "#1e3a8a",
+                icon: "🏹",
+                steps: [
+                    "準備一支牙線棒當作「弓」，一支棉花棒當作「箭」。",
+                    "用剪刀將棉花棒的一頭棉花剪掉，修剪平整。",
+                    "檢查牙線棒的線是否緊繃，這就是你的弓弦。",
+                    "左手拿牙線棒，將棉花棒尾端抵在牙線上。",
+                    "右手捏住棉花棒尾端與牙線，往後拉滿弓。",
+                    "瞄準目標，鬆開右手手指即可發射！"
+                ]
+            },
+            {
+                id: 3,
+                name: "竹筷子弩",
+                color: "#86efac", // Green-300
+                textColor: "#14532d",
+                icon: "⚔️",
+                steps: [
+                    "準備 3-4 雙竹筷與多條橡皮筋。",
+                    "將兩雙竹筷綁成十字形，橫向的作為弓臂。",
+                    "在橫向竹筷的左右兩端各綁上一條橡皮筋。",
+                    "將這兩條橡皮筋拉到中間綁在一起，形成弓弦。",
+                    "在直向竹筷後端製作一個簡易夾子或板機。",
+                    "將弓弦拉後勾住板機，放入短竹筷，扣板機發射。"
+                ]
+            },
+            {
+                id: 4,
+                name: "簡易投石機",
+                color: "#fde047", // Yellow-300
+                textColor: "#713f12",
+                icon: "☄️",
+                steps: [
+                    "準備 7-8 根冰棒棍與橡皮筋。",
+                    "將 5 根冰棒棍疊在一起，兩端用橡皮筋綁緊。",
+                    "另外拿 2 根冰棒棍，其中一端綁緊，做成鴨嘴狀。",
+                    "將 5 根疊好的冰棒棍塞入鴨嘴中間撐開。",
+                    "用橡皮筋將交接處綁成十字固定。",
+                    "在上方冰棒棍末端黏上一個寶特瓶蓋當作「勺子」。",
+                    "放入紙團，往下壓勺子再放開，發射！"
+                ]
+            }
+        ];
+
+        // Canvas Setup
+        const canvas = document.getElementById('wheel-canvas');
+        const ctx = canvas.getContext('2d');
+        const size = 600; // Canvas resolution
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const radius = size / 2;
+        const arc = (2 * Math.PI) / weapons.length;
+
+        // Draw the Wheel
+        function drawWheel() {
+            weapons.forEach((weapon, i) => {
+                const angle = i * arc;
+                
+                // Draw Segment
+                ctx.beginPath();
+                ctx.fillStyle = weapon.color;
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arc);
+                ctx.lineTo(centerX, centerY);
+                ctx.fill();
+
+                // Draw Text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = weapon.textColor;
+                ctx.font = "bold 40px 'Noto Sans TC'";
+                ctx.fillText(weapon.name, radius - 40, 10);
+                
+                // Draw Icon
+                ctx.font = "40px Arial";
+                ctx.fillText(weapon.icon, radius - 260, 12);
+                
+                ctx.restore();
+            });
+        }
+
+        drawWheel();
+
+        // Game Logic
+        const spinBtn = document.getElementById('spin-btn');
+        const wheelCanvas = document.getElementById('wheel-canvas');
+        const resultArea = document.getElementById('result-area');
+        const resultName = document.getElementById('result-name');
+        const tutorialBtn = document.getElementById('tutorial-btn');
+        
+        // Modal Elements
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        const closeModal = document.getElementById('close-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSteps = document.getElementById('modal-steps');
+        const modalIcon = document.getElementById('modal-icon');
+
+        let currentRotation = 0;
+        let isSpinning = false;
+        let currentWinner = null;
+
+        spinBtn.addEventListener('click', () => {
+            if (isSpinning) return;
+
+            // Hide previous result
+            resultArea.classList.add('hidden');
+            isSpinning = true;
+            spinBtn.textContent = "抽獎中...";
+            spinBtn.classList.add('opacity-75');
+
+            // Calculate Random Rotation (minimum 3 spins + random offset)
+            const randomDegree = Math.floor(Math.random() * 360);
+            const extraSpins = 360 * 5; // 5 full spins
+            const totalRotate = currentRotation + extraSpins + randomDegree;
+            
+            // Ensure we land clearly (add padding logic if needed, but CSS ease handles it visually)
+            currentRotation = totalRotate;
+
+            // Apply CSS Transform
+            wheelCanvas.style.transform = `rotate(-${currentRotation}deg)`;
+
+            // Wait for animation to finish (4s match CSS)
+            setTimeout(() => {
+                isSpinning = false;
+                spinBtn.textContent = "再抽一次";
+                spinBtn.classList.remove('opacity-75');
+                determineWinner(currentRotation);
+            }, 4000);
+        });
+
+        function determineWinner(rotation) {
+            // Normalize rotation to 0-360
+            const actualRotation = rotation % 360;
+            
+            // Calculate which segment is at the top (Pointer is at 270 degrees in CSS logical space? No, pointer is visually top)
+            // The logic: 0 degrees is 3 o'clock. Canvas rotates Counter Clockwise usually? No, we rotated negative (CCW).
+            // Let's simplify: 
+            // If we rotate -90 deg, segment 1 (0-90) moves from 3 o'clock to 12 o'clock.
+            // So Pointer (at 12 o'clock / 270 deg / -90 deg) intersects based on rotation.
+            
+            // Formula to find index:
+            // The pointer is static at the top. The wheel rotates.
+            // Degree per slice = 360 / 4 = 90.
+            
+            // Angle of the pointer relative to the wheel's 0 degree mark:
+            // (PointerAngle + TotalRotation) % 360
+            // Pointer is at 270 degrees (Top) in Canvas coordinates (0 is Right, 90 Down, 180 Left, 270 Top).
+            // But we applied `rotate(-degrees)`.
+            
+            // Let's reverse engineer:
+            // Slice 0: 0-90
+            // Slice 1: 90-180
+            // Slice 2: 180-270
+            // Slice 3: 270-360
+            
+            // The winning angle on the wheel is the one aligning with 270deg (Top).
+            // WinnerAngle = (270 + rotation) % 360
+            
+            let winningAngle = (270 + rotation) % 360;
+            const winningIndex = Math.floor(winningAngle / 90);
+            
+            currentWinner = weapons[winningIndex];
+            showResult(currentWinner);
+        }
+
+        function showResult(winner) {
+            resultName.textContent = winner.name;
+            resultArea.classList.remove('hidden');
+            // Trigger a small pulse animation via reflow could be added here
+        }
+
+        // Modal Logic
+        function openModal() {
+            if (!currentWinner) return;
+
+            modalTitle.textContent = currentWinner.name + " 製作攻略";
+            modalIcon.textContent = currentWinner.icon;
+            
+            // Generate Steps HTML
+            modalSteps.innerHTML = currentWinner.steps.map((step, index) => `
+                <div class="instruction-step">
+                    <span class="step-num">${index + 1}</span>
+                    <p class="text-sm leading-relaxed">${step}</p>
+                </div>
+            `).join('');
+
+            // Show Modal
+            modalOverlay.classList.remove('hidden');
+            // Allow display:block to apply before changing opacity for transition
+            requestAnimationFrame(() => {
+                modalOverlay.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-90');
+            });
+        }
+
+        function closeModalFunc() {
+            modalOverlay.classList.add('opacity-0');
+            modalContent.classList.add('scale-90');
+            
+            setTimeout(() => {
+                modalOverlay.classList.add('hidden');
+            }, 300); // Match CSS transition time
+        }
+
+        tutorialBtn.addEventListener('click', openModal);
+        closeModal.addEventListener('click', closeModalFunc);
+        closeModalBtn.addEventListener('click', closeModalFunc);
+        
+        // Close on clicking outside
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeModalFunc();
+            }
+        });
+
+    </script>
+</body>
+</html>
